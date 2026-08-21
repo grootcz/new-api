@@ -165,6 +165,14 @@ var RelayIdleConnTimeout int // unit is second
 var RelayMaxIdleConns int
 var RelayMaxIdleConnsPerHost int
 
+// 以下为集中式上游渠道 HTTP client 的传输层可配置项。
+var RelayDialTimeout int           // 建连超时，单位秒
+var RelayTLSHandshakeTimeout int   // TLS 握手超时，单位秒
+var RelayResponseHeaderTimeout int // 等待响应头超时，单位秒
+var RelayMaxConnsPerHost int       // 每主机最大连接数
+var RelayWriteBufferSize int       // 写缓冲，单位字节
+var RelayReadBufferSize int        // 读缓冲，单位字节
+
 var GeminiSafetySetting string
 
 // https://docs.cohere.com/docs/safety-modes Type; NONE/CONTEXTUAL/STRICT
