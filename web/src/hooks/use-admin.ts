@@ -29,3 +29,11 @@ export function useIsAdmin(): boolean {
   const { user } = useAuthStore((state) => state.auth)
   return (user?.role ?? 0) >= ROLE.ADMIN
 }
+
+/**
+ * Check if current user is a super admin (role >= 100)
+ */
+export function useIsRoot(): boolean {
+  const { user } = useAuthStore((state) => state.auth)
+  return (user?.role ?? 0) >= ROLE.SUPER_ADMIN
+}
