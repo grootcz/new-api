@@ -31,6 +31,17 @@ services:
       - REDIS_CONN_STRING=redis://redis
       - TZ=Asia/Shanghai
       - BATCH_UPDATE_ENABLED=true
+      # 集中式上游渠道 HTTP client 传输层配置 (Centralized upstream-channel HTTP client transport settings)
+      - RELAY_TIMEOUT=0                    # 总超时，单位秒，0 表示不限制 (total timeout in seconds; 0 disables)
+      - RELAY_DIAL_TIMEOUT=5               # 建连超时，单位秒 (dial/connect timeout in seconds)
+      - RELAY_TLS_HANDSHAKE_TIMEOUT=7      # TLS 握手超时，单位秒 (TLS handshake timeout in seconds)
+      - RELAY_RESPONSE_HEADER_TIMEOUT=900  # 等待响应头超时，单位秒，默认 15 分钟 (wait-for-response-header timeout in seconds; default 15 min)
+      - RELAY_IDLE_CONN_TIMEOUT=90         # 空闲连接超时，单位秒 (idle keep-alive timeout in seconds)
+      - RELAY_MAX_CONNS_PER_HOST=1024      # 每个上游主机最大连接数 (max connections per upstream host)
+      - RELAY_MAX_IDLE_CONNS=500           # 最大空闲连接数 (max idle connections)
+      - RELAY_MAX_IDLE_CONNS_PER_HOST=100  # 每个上游主机最大空闲连接数 (max idle connections per upstream host)
+      - RELAY_WRITE_BUFFER_SIZE=65536      # 写缓冲，单位字节，默认 64KB (write buffer size in bytes; default 64KB)
+      - RELAY_READ_BUFFER_SIZE=65536       # 读缓冲，单位字节，默认 64KB (read buffer size in bytes; default 64KB)
       # Local HTTP dev mode: keep Secure=false and leave TRUSTED_URL unset. This disables the refresh/logout OriginGuard so the :5173 -> :3000 dev proxy works.
       - SESSION_COOKIE_SECURE=false
       # For HTTPS only: set Secure=true and list every exact trusted HTTPS browser Origin. This does not configure relay CORS.

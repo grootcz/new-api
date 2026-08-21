@@ -76,21 +76,24 @@ func newRelayHTTPTransport() *http.Transport {
 	if defaultTransport, ok := http.DefaultTransport.(*http.Transport); ok && defaultTransport != nil {
 		transport = defaultTransport.Clone()
 	} else {
-		dialer := &net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
-		}
 		transport = &http.Transport{
-			Proxy:                 http.ProxyFromEnvironment,
-			DialContext:           dialer.DialContext,
-			ForceAttemptHTTP2:     true,
-			TLSHandshakeTimeout:   10 * time.Second,
-			ExpectContinueTimeout: time.Second,
+			Proxy:             http.ProxyFromEnvironment,
+			ForceAttemptHTTP2: true,
 		}
 	}
+	// 显式覆盖拨号器：Clone 会带入标准库默认值，必须重设才能应用集中配置的建连超时。
+	transport.DialContext = (&net.Dialer{
+		Timeout:   time.Duration(common.RelayDialTimeout) * time.Second,
+		KeepAlive: 30 * time.Second,
+	}).DialContext
+	transport.TLSHandshakeTimeout = time.Duration(common.RelayTLSHandshakeTimeout) * time.Second
+	transport.ResponseHeaderTimeout = time.Duration(common.RelayResponseHeaderTimeout) * time.Second
+	transport.MaxConnsPerHost = common.RelayMaxConnsPerHost
 	transport.MaxIdleConns = common.RelayMaxIdleConns
 	transport.MaxIdleConnsPerHost = common.RelayMaxIdleConnsPerHost
 	transport.IdleConnTimeout = time.Duration(common.RelayIdleConnTimeout) * time.Second
+	transport.WriteBufferSize = common.RelayWriteBufferSize
+	transport.ReadBufferSize = common.RelayReadBufferSize
 	transport.ForceAttemptHTTP2 = true
 	if common.TLSInsecureSkipVerify {
 		transport.TLSClientConfig = common.InsecureTLSConfig

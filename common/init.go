@@ -112,6 +112,12 @@ func InitEnv() {
 	RelayIdleConnTimeout = GetEnvOrDefault("RELAY_IDLE_CONN_TIMEOUT", 90)
 	RelayMaxIdleConns = GetEnvOrDefault("RELAY_MAX_IDLE_CONNS", 500)
 	RelayMaxIdleConnsPerHost = GetEnvOrDefault("RELAY_MAX_IDLE_CONNS_PER_HOST", 100)
+	RelayDialTimeout = GetEnvOrDefault("RELAY_DIAL_TIMEOUT", 5)
+	RelayTLSHandshakeTimeout = GetEnvOrDefault("RELAY_TLS_HANDSHAKE_TIMEOUT", 7)
+	RelayResponseHeaderTimeout = GetEnvOrDefault("RELAY_RESPONSE_HEADER_TIMEOUT", 900)
+	RelayMaxConnsPerHost = GetEnvOrDefault("RELAY_MAX_CONNS_PER_HOST", 1024)
+	RelayWriteBufferSize = GetEnvOrDefault("RELAY_WRITE_BUFFER_SIZE", 64*1024)
+	RelayReadBufferSize = GetEnvOrDefault("RELAY_READ_BUFFER_SIZE", 64*1024)
 
 	// Initialize string variables with GetEnvOrDefaultString
 	GeminiSafetySetting = GetEnvOrDefaultString("GEMINI_SAFETY_SETTING", "BLOCK_NONE")
