@@ -29,6 +29,10 @@ func parseFlowQuotaTimeRange(c *gin.Context) (int64, int64, bool) {
 }
 
 func GetAllQuotaDates(c *gin.Context) {
+	if c.GetInt("role") < common.RoleRootUser {
+		GetUserQuotaDates(c)
+		return
+	}
 	startTimestamp, _ := strconv.ParseInt(c.Query("start_timestamp"), 10, 64)
 	endTimestamp, _ := strconv.ParseInt(c.Query("end_timestamp"), 10, 64)
 	username := c.Query("username")
