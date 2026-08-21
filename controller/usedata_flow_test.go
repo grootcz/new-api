@@ -61,23 +61,24 @@ func decodeFlowQuotaResponse(t *testing.T, recorder *httptest.ResponseRecorder) 
 	return payload
 }
 
-func TestGetAllFlowQuotaDatesUsesAdminDimensions(t *testing.T) {
+func TestGetAllFlowQuotaDatesDelegatesNonRootToSelf(t *testing.T) {
 	setupFlowControllerTestDB(t)
 
 	recorder := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(recorder)
+	// 普通管理员（role 10）被委派到 self：忽略 username，仅见本人（alice, id=1）数据，
+	// 即便显式传 username=bob 也拿不到他人 flow 数据。
 	ctx.Set("role", common.RoleAdminUser)
+	ctx.Set("id", 1)
 	ctx.Request = httptest.NewRequest(http.MethodGet, "/api/data/flow?start_timestamp=1000&end_timestamp=2000&username=bob", nil)
 
 	GetAllFlowQuotaDates(ctx)
 
 	payload := decodeFlowQuotaResponse(t, recorder)
 	require.Len(t, payload.Data, 1)
-	require.Equal(t, "bob", payload.Data[0].Username)
-	require.Equal(t, "vip", payload.Data[0].UseGroup)
-	require.Equal(t, "east", payload.Data[0].ChannelName)
-	require.Empty(t, payload.Data[0].TokenName)
-	require.Empty(t, payload.Data[0].NodeName)
+	require.Equal(t, "default", payload.Data[0].UseGroup) // alice 的分组，非 bob 的 "vip"
+	require.Equal(t, 100, payload.Data[0].Quota)          // alice 的额度，非 bob 的 70
+	require.Empty(t, payload.Data[0].Username)            // self 维度不返回 username
 }
 
 func TestGetAllFlowQuotaDatesUsesRootDimensions(t *testing.T) {
