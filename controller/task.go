@@ -14,6 +14,10 @@ import (
 )
 
 func GetAllTask(c *gin.Context) {
+	if c.GetInt("role") < common.RoleRootUser {
+		GetUserTask(c)
+		return
+	}
 	pageInfo := common.GetPageQuery(c)
 
 	startTimestamp, _ := strconv.ParseInt(c.Query("start_timestamp"), 10, 64)

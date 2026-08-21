@@ -279,6 +279,10 @@ func checkMjTaskNeedUpdate(oldTask *model.Midjourney, newTask dto.MidjourneyDto)
 }
 
 func GetAllMidjourney(c *gin.Context) {
+	if c.GetInt("role") < common.RoleRootUser {
+		GetUserMidjourney(c)
+		return
+	}
 	pageInfo := common.GetPageQuery(c)
 
 	// 解析其他查询参数

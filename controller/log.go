@@ -11,6 +11,10 @@ import (
 )
 
 func GetAllLogs(c *gin.Context) {
+	if c.GetInt("role") < common.RoleRootUser {
+		GetUserLogs(c)
+		return
+	}
 	pageInfo := common.GetPageQuery(c)
 	logType, _ := strconv.Atoi(c.Query("type"))
 	startTimestamp, _ := strconv.ParseInt(c.Query("start_timestamp"), 10, 64)
@@ -96,6 +100,10 @@ func GetLogByKey(c *gin.Context) {
 }
 
 func GetLogsStat(c *gin.Context) {
+	if c.GetInt("role") < common.RoleRootUser {
+		GetLogsSelfStat(c)
+		return
+	}
 	logType, _ := strconv.Atoi(c.Query("type"))
 	startTimestamp, _ := strconv.ParseInt(c.Query("start_timestamp"), 10, 64)
 	endTimestamp, _ := strconv.ParseInt(c.Query("end_timestamp"), 10, 64)
