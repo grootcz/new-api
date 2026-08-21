@@ -50,6 +50,16 @@ func GetAllQuotaDates(c *gin.Context) {
 }
 
 func GetQuotaDatesByUser(c *gin.Context) {
+	// 跨用户「按用户消费对比」视图仅超级管理员可见；普通管理员与普通用户
+	// 无跨用户可见性，返回空集（前端已隐藏该视图，这里做纵深防御）。
+	if c.GetInt("role") < common.RoleRootUser {
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"message": "",
+			"data":    []model.QuotaData{},
+		})
+		return
+	}
 	startTimestamp, _ := strconv.ParseInt(c.Query("start_timestamp"), 10, 64)
 	endTimestamp, _ := strconv.ParseInt(c.Query("end_timestamp"), 10, 64)
 	dates, err := model.GetQuotaDataGroupByUser(startTimestamp, endTimestamp)
@@ -90,6 +100,10 @@ func GetUserQuotaDates(c *gin.Context) {
 }
 
 func GetAllFlowQuotaDates(c *gin.Context) {
+	if c.GetInt("role") < common.RoleRootUser {
+		GetUserFlowQuotaDates(c)
+		return
+	}
 	startTimestamp, endTimestamp, ok := parseFlowQuotaTimeRange(c)
 	if !ok {
 		return
