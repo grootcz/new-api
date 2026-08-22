@@ -333,6 +333,9 @@ func DoApiRequest(a Adaptor, c *gin.Context, info *common.RelayInfo, requestBody
 		return nil, err
 	}
 	applyHeaderOverrideToRequest(req, headerOverride)
+	// 绑定客户端请求 context：客户端断开时随之取消上游请求，停止消耗上游 token。
+	// task 异步提交请求（DoTaskApiRequest）不绑定，因其为“提交后轮询”模型，客户端提交后本就会断开。
+	req = bindClientCancelContext(c, req)
 	resp, err := doRequest(c, req, info)
 	if err != nil {
 		return nil, fmt.Errorf("do request failed: %w", err)
@@ -365,6 +368,7 @@ func DoFormRequest(a Adaptor, c *gin.Context, info *common.RelayInfo, requestBod
 		return nil, err
 	}
 	applyHeaderOverrideToRequest(req, headerOverride)
+	req = bindClientCancelContext(c, req)
 	resp, err := doRequest(c, req, info)
 	if err != nil {
 		return nil, fmt.Errorf("do request failed: %w", err)
@@ -485,6 +489,16 @@ func DoRequest(c *gin.Context, req *http.Request, info *common.RelayInfo) (*http
 // returning the upstream 3xx response to the relay without an extra error.
 func keepUpstreamRedirectResponse(_ *http.Request, _ []*http.Request) error {
 	return http.ErrUseLastResponse
+}
+
+// bindClientCancelContext 将上游请求绑定到客户端的请求 context，使客户端断开连接时
+// 上游请求随之被取消，停止消耗上游 token。仅用于同步 relay；task 异步提交请求不调用此函数。
+// http.NewRequest / ApplyUpstreamBodyMetadata 已设置好 GetBody，WithContext 不影响 body replay。
+func bindClientCancelContext(c *gin.Context, req *http.Request) *http.Request {
+	if c == nil || c.Request == nil || req == nil {
+		return req
+	}
+	return req.WithContext(c.Request.Context())
 }
 
 func doRequest(c *gin.Context, req *http.Request, info *common.RelayInfo) (*http.Response, error) {

@@ -175,7 +175,18 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		if newAPIError != nil {
 			newAPIError = service.NormalizeViolationFeeError(newAPIError)
 			if relayInfo.Billing != nil {
-				relayInfo.Billing.Refund(c)
+				if types.IsClientCanceled(newAPIError) {
+					// 客户端主动断开连接：上游 token 大概率已消耗，按预扣额结算（不退款）。
+					// SettleBilling(actual==preConsumed) → delta=0，标记 settled 并阻止后续退款。
+					settleQuota := relayInfo.FinalPreConsumedQuota
+					if err := service.SettleBilling(c, relayInfo, settleQuota); err != nil {
+						logger.LogError(c, "error settling billing on client cancel: "+err.Error())
+					}
+					logger.LogInfo(c, fmt.Sprintf("客户端断开连接，按预扣额结算：userId=%d channelId=%d tokenId=%d model=%s pre_consumed_quota=%d",
+						relayInfo.UserId, relayInfo.ChannelId, relayInfo.TokenId, relayInfo.OriginModelName, settleQuota))
+				} else {
+					relayInfo.Billing.Refund(c)
+				}
 			}
 			service.ChargeViolationFeeIfNeeded(c, relayInfo, newAPIError)
 		}
@@ -234,6 +245,15 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		}
 
 		newAPIError = service.NormalizeViolationFeeError(newAPIError)
+		// 客户端主动断开连接：上游请求已随 c.Request.Context() 取消。
+		// 规范化为客户端取消错误（499 / SkipRetry / 不记录错误日志），使下游统一处理：
+		// 不换渠道重试、不禁用渠道、按预扣额结算（见下方 defer 计费分支）。
+		if types.IsClientCanceled(newAPIError) {
+			newAPIError = types.NewError(newAPIError, types.ErrorCodeClientClosedRequest,
+				types.ErrOptionWithStatusCode(service.StatusClientClosedRequest),
+				types.ErrOptionWithSkipRetry(),
+				types.ErrOptionWithNoRecordErrorLog())
+		}
 		relayInfo.LastError = newAPIError
 
 		processChannelError(c, *types.NewChannelError(channel.Id, channel.Type, channel.Name, channel.ChannelInfo.IsMultiKey, common.GetContextKeyString(c, constant.ContextKeyChannelKey), channel.GetAutoBan()), newAPIError)
