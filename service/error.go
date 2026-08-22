@@ -18,6 +18,10 @@ import (
 	"github.com/QuantumNous/new-api/relaykit/types"
 )
 
+// StatusClientClosedRequest 是客户端主动断开连接时使用的 HTTP 状态码（nginx 惯例 499），
+// net/http 标准库未定义。
+const StatusClientClosedRequest = 499
+
 func MidjourneyErrorWrapper(code int, desc string) *taskdto.MidjourneyResponse {
 	return &taskdto.MidjourneyResponse{
 		Code:        code,
@@ -82,6 +86,30 @@ func ClaudeErrorWrapperLocal(err error, code string, statusCode int) *dto.Claude
 	claudeErr := ClaudeErrorWrapper(err, code, statusCode)
 	claudeErr.LocalError = true
 	return claudeErr
+}
+
+// ReadUpstreamBody 读取上游响应体，并归一化客户端取消语义。
+// 当客户端主动断开连接（上游请求已绑定 c.Request.Context()）时，io.ReadAll 会返回
+// context.Canceled；此时返回带 499 / SkipRetry / NoRecordErrorLog 的错误，使上层：
+//   - 不换渠道重试（SkipRetry）
+//   - 不禁用渠道（ShouldDisableChannel 对 SkipRetry 返回 false）
+//   - 不记录错误日志（NoRecordErrorLog）
+// 其它读取错误按 ErrorCodeReadResponseBodyFailed / 500 返回，保持既有语义。
+func ReadUpstreamBody(resp *http.Response) ([]byte, *types.NewAPIError) {
+	if resp == nil || resp.Body == nil {
+		return nil, types.NewError(errors.New("upstream response body is nil"), types.ErrorCodeReadResponseBodyFailed, types.ErrOptionWithStatusCode(http.StatusInternalServerError))
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		if types.IsClientCanceled(err) {
+			return nil, types.NewError(err, types.ErrorCodeClientClosedRequest,
+				types.ErrOptionWithStatusCode(StatusClientClosedRequest),
+				types.ErrOptionWithSkipRetry(),
+				types.ErrOptionWithNoRecordErrorLog())
+		}
+		return nil, types.NewError(err, types.ErrorCodeReadResponseBodyFailed, types.ErrOptionWithStatusCode(http.StatusInternalServerError))
+	}
+	return body, nil
 }
 
 func RelayErrorHandler(ctx context.Context, resp *http.Response, showBodyWhenFail bool) (newApiErr *types.NewAPIError) {

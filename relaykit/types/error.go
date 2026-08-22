@@ -1,6 +1,7 @@
 package types
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -64,6 +65,7 @@ const (
 	ErrorCodeReadRequestBodyFailed ErrorCode = "read_request_body_failed"
 	ErrorCodeConvertRequestFailed  ErrorCode = "convert_request_failed"
 	ErrorCodeAccessDenied          ErrorCode = "access_denied"
+	ErrorCodeClientClosedRequest   ErrorCode = "client_closed_request"
 
 	// request error
 	ErrorCodeBadRequestBody ErrorCode = "bad_request_body"
@@ -376,6 +378,24 @@ func IsSkipRetryError(err *NewAPIError) bool {
 	}
 
 	return err.skipRetry
+}
+
+// IsClientCanceled 判定错误链是否源于客户端主动断开连接（context.Canceled）。
+// 服务端超时 context.DeadlineExceeded 不算客户端取消，保持既有超时语义。
+// NewAPIError 实现了 Unwrap，errors.Is 可穿透到底层 err；同时兼容显式的
+// ErrorCodeClientClosedRequest 错误码（底层 err 可能已被 HideErrMsg 替换）。
+func IsClientCanceled(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, context.Canceled) {
+		return true
+	}
+	var newErr *NewAPIError
+	if errors.As(err, &newErr) && newErr != nil {
+		return newErr.errorCode == ErrorCodeClientClosedRequest
+	}
+	return false
 }
 
 func ErrOptionWithSkipRetry() NewAPIErrorOptions {
